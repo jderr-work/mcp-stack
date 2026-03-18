@@ -1,0 +1,91 @@
+services:
+
+  # ---------------------------------------------------------------------------
+  # Nginx reverse proxy — single entry point for all MCP servers
+  # Host: http://localhost:9000/<server-name>/
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - github-official
+      - atlassian
+      - mcp-fetch
+      - mcp-duckduckgo
+      - mcp-playwright
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # GitHub MCP Server — native streamable HTTP mode
+  # Route: http://localhost:9000/github-official/mcp
+  # ---------------------------------------------------------------------------
+  github-official:
+    image: ghcr.io/github/github-mcp-server
+    command: ["http"]
+    environment:
+      GITHUB_PERSONAL_ACCESS_TOKEN: ${GITHUB_MCP_TOKEN}
+    expose:
+      - "8082"
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Atlassian MCP Server — streamable HTTP transport mode
+  # Route: http://localhost:9000/atlassian/mcp
+  # ---------------------------------------------------------------------------
+  atlassian:
+    image: ghcr.io/sooperset/mcp-atlassian:latest
+    environment:
+      TRANSPORT: streamable-http
+      HOST: 0.0.0.0
+      PORT: "8000"
+      JIRA_URL: https://pellacorp.atlassian.net
+      JIRA_USERNAME: derrjn@pella.com
+      JIRA_API_TOKEN: ${JIRA_TOKEN}
+      READ_ONLY_MODE: "true"
+    expose:
+      - "8000"
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # fetch MCP server via mcp-proxy
+  # Route: http://localhost:9000/fetch/mcp  (streamable HTTP)
+  #        http://localhost:9000/fetch/sse  (SSE)
+  # ---------------------------------------------------------------------------
+  mcp-fetch:
+    build:
+      context: .
+      dockerfile: docker/fetch/Dockerfile
+    expose:
+      - "8001"
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # DuckDuckGo MCP server via mcp-proxy
+  # Route: http://localhost:9000/duckduckgo/mcp  (streamable HTTP)
+  #        http://localhost:9000/duckduckgo/sse  (SSE)
+  # ---------------------------------------------------------------------------
+  mcp-duckduckgo:
+    build:
+      context: .
+      dockerfile: docker/duckduckgo/Dockerfile
+    expose:
+      - "8002"
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Playwright MCP server via mcp-proxy (headless Chromium)
+  # Route: http://localhost:9000/playwright/mcp  (streamable HTTP)
+  #        http://localhost:9000/playwright/sse  (SSE)
+  # ---------------------------------------------------------------------------
+  mcp-playwright:
+    build:
+      context: .
+      dockerfile: docker/playwright/Dockerfile
+    expose:
+      - "8003"
+    # Chromium needs shared memory; default 64mb is too small
+    shm_size: 256mb
+    restart: unless-stopped
