@@ -41,8 +41,8 @@ services:
       TRANSPORT: streamable-http
       HOST: 0.0.0.0
       PORT: "8000"
-      JIRA_URL: https://pellacorp.atlassian.net
-      JIRA_USERNAME: derrjn@pella.com
+      JIRA_URL: ${JIRA_URL}
+      JIRA_USERNAME: ${JIRA_USERNAME}
       JIRA_API_TOKEN: ${JIRA_TOKEN}
       READ_ONLY_MODE: "true"
     expose:
